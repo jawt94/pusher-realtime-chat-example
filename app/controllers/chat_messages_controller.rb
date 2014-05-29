@@ -5,6 +5,8 @@ class ChatMessagesController < ApplicationController
   end
 
   def create
-    redirect_to root_url
+    @chat_message = ChatMessage.new(params[:chat_message])
+
+    respond_to :js
   end
 end

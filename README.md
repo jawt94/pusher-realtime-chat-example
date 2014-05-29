@@ -203,6 +203,134 @@ Redirected to http://localhost:3000/
 Completed 302 Found in 1ms (ActiveRecord: 0.0ms)
 ```
 
+## Iteration 2
+
+```bash
+# Merge the previous work into master
+$ git checkout master
+$ git merge iteration-1
+
+# Create a new branch named iteration-2 and switch into it
+$ git checkout -b iteration-2
+```
+
+In this iteration all we want to do is get the message submitted by the user to
+appear on the same page that the user used to submit the message. The page
+should not be refreshed.
+
+Based on these requirements we will need to submit the form via [Ajax](ajax)
+and have the server send a response that places a view of the message on the
+page.
+
+To submit the form via [Ajax][ajax] we simply need to change the `form_for` to:
+
+```html
+<!-- app/views/chat_messages/index.html.erb -->
+
+<%= form_for @chat_messages, remote: true do |f| %>
+```
+
+**Note:** Many things are happening in that single line above and so I'd suggest
+you read [Working with JavaScript in Rails](http://guides.rubyonrails.org/working_with_javascript_in_rails.html)
+to fully understand the implication of adding `remote: true`.
+
+If we now fill out the form and try to send a message it appears that nothing
+happens. However, by looking at the logs we see that our form is being
+processed by [Rails][rails] as `JS` rather than as `HTML`.
+
+```
+# log/development.log
+
+Started POST "/chat_messages" for 127.0.0.1 at 2014-05-29 07:38:57 -0400
+Processing by ChatMessagesController#create as JS
+  Parameters: {"utf8"=>"✓", "chat_message"=>{"name"=>"Dwayne", "message"=>"Hello, world!"}, "commit"=>"Send"}
+Redirected to http://localhost:3000/
+Completed 302 Found in 1ms (ActiveRecord: 0.0ms)
+
+
+Started GET "/" for 127.0.0.1 at 2014-05-29 07:38:57 -0400
+Processing by ChatMessagesController#index as JS
+  Rendered chat_messages/index.html.erb within layouts/application (1.2ms)
+Completed 200 OK in 6ms (Views: 5.5ms | ActiveRecord: 0.0ms)
+```
+
+If we look at the `Network` tab in the [Chrome DevTools][chrome_devtools] we'd
+see that the request is being sent as an `XMLHttpRequest` or `xhr` request.
+
+![Ajax request to /chat_messages](doc/assets/images/chrome-chat-messages-ajax-request.png)
+
+Great! Let's handle the request by responding appropriately.
+
+```ruby
+# app/controllers/chat_messages_controller.rb
+
+def create
+  @chat_message = ChatMessage.new(params[:chat_message])
+
+  respond_to { |format| format.js }
+end
+```
+
+If we go back to the form and try to send a message, then still nothing appears
+to happen. However, we're now getting the following error messages if we view
+the `Network` tab in [Chrome DevTools][chrome_devtools].
+
+![Internal server error for Ajax request to /chat_messages](doc/assets/images/internal-server-error-ajax-request-chat-messages.png)
+
+And on a deeper inspection:
+
+![Missing template for Ajax request to /chat_messages](doc/assets/images/missing-template-ajax-request-chat-messages.png)
+
+We fix it by creating the file `app/views/chat_messages/create.js.erb` with the
+content:
+
+```js
+// app/views/chat_messages/create.js.erb
+
+alert('<%= @chat_message.name %> says <%= @chat_message.message %>');
+```
+
+Fantastic! We now get an alert message telling us exactly what we said.
+
+![Alert Dwayne says hello](doc/assets/images/alert-dwayne-says-hello-world.png)
+
+To round off this iteration we need to render the message within the page and
+not in an alert box. The following changes do just that.
+
+Firstly, add an area to the page for displaying the chat messages.
+
+```html
+<!-- app/views/chat_messages/index.html.erb -->
+
+<ul class="chat_messages"></ul>
+```
+
+Then, add a partial for rendering an individual chat message.
+
+```html
+<!-- app/views/chat_messages/_chat_message.html.erb -->
+
+<li><%= chat_message.name %> says <%= chat_message.message %></li>
+```
+
+And finally, place the chat message within the messages area.
+
+```js
+// app/views/chat_messages/create.js.erb
+
+// clear the message box
+$('#chat_message_message').val('');
+
+// show the message in the messages area
+$('.chat_messages').prepend('<%= escape_javascript(render @chat_message) %>');
+```
+
+This completes iteration 2.
+
+![Send chat message via Ajax](doc/assets/images/send-chat-message-via-ajax-works.png)
+
 [pusher]: http://pusher.com/
 [rails]: http://rubyonrails.org/
 [form_for]: http://api.rubyonrails.org/classes/ActionView/Helpers/FormHelper.html#method-i-form_for
+[ajax]: https://developer.mozilla.org/en/docs/AJAX
+[chrome_devtools]: http://discover-devtools.codeschool.com/
