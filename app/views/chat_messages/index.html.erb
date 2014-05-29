@@ -1,0 +1,15 @@
+<%= form_for @chat_message do |f| %>
+  <div>
+    <%= f.label :name %>
+    <%= f.text_field :name %>
+  </div>
+
+  <div>
+    <%= f.label :message %>
+    <%= f.text_area :message, rows: 5, cols: 40 %>
+  </div>
+
+  <div>
+    <%= f.submit 'Send' %>
+  </div>
+<% end %>
