@@ -3,6 +3,12 @@
   var pusher = new Pusher('<%= ENV["PUSHER_KEY"] %>');
   var channel = pusher.subscribe('chat');
 
+  pusher.connection.bind('connected', function () {
+    var socket_id = pusher.connection.socket_id;
+
+    $('#socket_id').val(socket_id);
+  });
+
   channel.bind('new_message', function (data) {
     // Code smell - Duplicated view
     // It's exactly app/views/chat_messages/_chat_message.html

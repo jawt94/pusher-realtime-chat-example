@@ -519,6 +519,83 @@ In the tab where we send the message we are getting a duplicate. Unfortunately,
 you will have to wait till the next iteration to get that fixed.
 :stuck_out_tongue:
 
+## Iteration 4
+
+The sender of a message gets the message displayed in their message area in two
+ways:
+
+1. via [Ajax][ajax], and
+2. via [Pusher][pusher]
+
+If we can eliminate one of these ways for the sender then we won't encounter the
+duplicate message problem.
+
+With [Pusher][pusher] we can [exclude recipients](http://pusher.com/docs/server_api_guide/server_excluding_recipients).
+Hence, by excluding the sender of the message from the set of recipients we can
+ensure that they don't receive their own message via [Pusher][pusher].
+
+When we trigger an event from the server we need to pass along a `socket_id` so
+that the client with that `socket_id` will be excluded from receiving the event.
+
+```ruby
+# app/controllers/chat_messages.rb
+
+def create
+  # ...
+  Pusher.trigger('chat', 'new_message', {
+    name: @chat_message.name,
+    message: @chat_message.message
+  }, {
+    socket_id: params[:socket_id]
+  })
+  # ...
+end
+```
+
+How do we get that `socket_id` in the `params` hash?
+
+Pass it through the form via a hidden field of course.
+
+```html
+<!-- app/views/chat_messages/index.html.erb -->
+
+<div style="display:none">
+  <%= hidden_field_tag :socket_id %>
+</div>
+```
+
+Awesome! But we're not setting any value. How do we get the value of the
+client's `socket_id`?
+
+It so happens that each [Pusher][pusher] connection is assigned a unique
+`socket_id` once the client has connected to [Pusher][pusher]. By binding to the
+`connected` state change event we can access the `socket_id`.
+
+```js
+// app/assets/javascripts/chat.js.erb
+
+pusher.connection.bind('connected', function () {
+  var socket_id = pusher.connection.socket_id;
+
+  $('#socket_id').val(socket_id);
+});
+```
+
+That solves the problem. Send a message now and notice that everything works as
+it did before but now the sender does not get a duplicate message. :grin:
+
+I hope you've enjoyed building this Realtime Chat Application with
+[Pusher][pusher] and [Ruby on Rails](rails).
+
+There is a lot more I can cover in order to make extensions to the basic
+application but I will stop here for now. If you do want me to write about other
+features, please [let me know](https://twitter.com/dwaynecrooks) and I will
+gladly take the time to do so. Until then I'd only be updating the code.
+
+Happy hacking!
+
+**The End.**
+
 [pusher]: http://pusher.com/
 [rails]: http://rubyonrails.org/
 [form_for]: http://api.rubyonrails.org/classes/ActionView/Helpers/FormHelper.html#method-i-form_for
