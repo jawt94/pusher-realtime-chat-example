@@ -8,8 +8,14 @@
     };
   <% end %>
 
-  var pusher = new Pusher('<%= ENV["PUSHER_KEY"] %>');
-  var channel = pusher.subscribe('chat');
+  var pusher = new Pusher('<%= ENV["PUSHER_KEY"] %>', {
+    auth: {
+      headers: {
+        'X-CSRF-Token': $('meta[name=csrf-token]').attr('content')
+      }
+    }
+  });
+  var channel = pusher.subscribe('private-chat');
 
   pusher.connection.bind('connected', function () {
     var socket_id = pusher.connection.socket_id;
