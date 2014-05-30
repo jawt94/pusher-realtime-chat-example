@@ -23,6 +23,16 @@
     $('#socket_id').val(socket_id);
   });
 
+  // Handle subscription events
+  channel.bind('pusher:subscription_succeeded', function () {
+    console.log('Subscription successful');
+  });
+
+  channel.bind('pusher:subscription_error', function () {
+    console.log('Subscription failed');
+  });
+  // ------------------------------------------------
+
   channel.bind('new_message', function (data) {
     // Code smell - Duplicated view
     // It's exactly app/views/chat_messages/_chat_message.html
