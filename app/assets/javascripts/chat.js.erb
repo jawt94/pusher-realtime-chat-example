@@ -15,7 +15,7 @@
       }
     }
   });
-  var channel = pusher.subscribe('private-chat');
+  var channel = pusher.subscribe('presence-chat');
 
   pusher.connection.bind('connected', function () {
     var socket_id = pusher.connection.socket_id;
@@ -30,6 +30,16 @@
 
   channel.bind('pusher:subscription_error', function () {
     console.log('Subscription failed');
+  });
+  // ------------------------------------------------
+
+  // Handle member events
+  channel.bind('pusher:member_added', function (member) {
+    console.log(member.info.name + ' joined the room');
+  });
+
+  channel.bind('pusher:member_removed', function (member) {
+    console.log(member.info.name + ' left the room');
   });
   // ------------------------------------------------
 

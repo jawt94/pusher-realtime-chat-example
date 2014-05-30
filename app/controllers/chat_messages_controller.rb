@@ -7,7 +7,7 @@ class ChatMessagesController < ApplicationController
   def create
     @chat_message = ChatMessage.new(params[:chat_message])
 
-    Pusher.trigger('private-chat', 'new_message', {
+    Pusher.trigger('presence-chat', 'new_message', {
       name: @chat_message.name,
       message: @chat_message.message
     }, {
