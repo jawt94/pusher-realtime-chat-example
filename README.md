@@ -329,8 +329,200 @@ This completes iteration 2.
 
 ![Send chat message via Ajax](doc/assets/images/send-chat-message-via-ajax-works.png)
 
+## Iteration 3
+
+Open two browser tabs and point both of them at http://localhost:3000. Pick any
+one of them and send a message. Switch to the other tab. Do you see the message
+you sent? Hopefully not, else that would be really spooky. We haven't done
+anything at all to make that happen. But, in this iteration we will.
+
+To be clear, we will add a feature to our application such that when you send a
+message from any browser tab open at http://localhost:3000 then that same
+message will appear in all the other browser tabs that are also open at
+http://localhost:3000 without needing to manually refresh the pages.
+
+**TODO:** Explain why the HTTP protocol doesn't do this out of the box and why
+we need a technology like web sockets to make this happen.
+
+**TODO:** Explain why you should use a technology like Pusher that's built
+around web sockets rather than using web sockets directly.
+
+For a good introduction to [Pusher][pusher] I'd recommend you read
+[Understanding Pusher](http://pusher.com/docs) and the
+[JavaScript Quick Start Guide](http://pusher.com/docs/javascript_quick_start).
+
+Let's add Pusher to our project.
+
+**Step 1**
+
+[Sign up](http://pusher.com/pricing) for a FREE Sandbox account.
+
+**Step 2**
+
+[Login](https://app.pusher.com/accounts/sign_in) to your
+[Dashboard](https://app.pusher.com/).
+
+**Step 3**
+
+Create a new app. I named my app **Pusher Realtime Chat Example** but you can
+name yours anything you want. Leave all the other fields unchecked.
+
+**Step 4**
+
+Take note of your `app_id`, `key` and `secret` under **App Credentials**.
+
+We will now set up the
+[JavaScript client API](http://pusher.com/docs/client_api_guide/#lang=js).
+
+**Step 1**
+
+[Include the Pusher client library](http://pusher.com/docs/javascript_quick_start#include-the-pusher-client-library).
+There are both HTTP and HTTPS versions. Since they are each hosted at completely
+different locations we can't use the
+[Protocol-relative](http://www.paulirish.com/2010/the-protocol-relative-url/)
+trick. Instead we will create a helper that will make the decision for us.
+
+```ruby
+# app/helpers/application_helper.rb
+
+def pusher_include_tag(version)
+  domain = if request.ssl?
+             'https://d3dy5gmtp8yhk7.cloudfront.net'
+           else
+             'http://js.pusher.com'
+           end
+
+  javascript_include_tag "#{domain}/#{version}/pusher.min.js"
+end
+```
+
+Our `app/views/layouts/application.html.erb` file will now include the
+[Pusher][pusher] client library. While we're at it we will
+[move the scripts to the bottom of the page](https://developer.yahoo.com/blogs/ydnfiveblog/high-performance-sites-rule-6-move-scripts-bottom-7200.html)
+just before the closing body tag.
+
+```html
+<!-- app/views/layouts/application.html.erb -->
+<body>
+
+  <%= yield %>
+
+  <%= pusher_include_tag '2.2' %>
+  <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
+</body>
+```
+
+**Step 2**
+
+Listen for events on a channel and update the messages area when we do get a
+message.
+
+```js
+// app/assets/javascripts/chat.js.erb
+
+;(function ($) {
+
+  var pusher = new Pusher('<%= ENV["PUSHER_KEY"] %>');
+  var channel = pusher.subscribe('chat');
+
+  channel.bind('new_message', function (data) {
+    // Code smell - Duplicated view
+    // It's exactly app/views/chat_messages/_chat_message.html
+    $('.chat_messages').prepend('<li>' + data.name + ' says ' + data.message + '</li>');
+  });
+}(jQuery));
+```
+
+**Note:** A bit later we explain how to set the environment variable using a gem
+like [dotenv][dotenv]. For now you can include the value in-place.
+
+**Step 3**
+
+Test that we set up everything correctly. [Pusher][pusher] has an
+[Event Creator][event_creator] debugging tool that we can use to send messages
+to our client. Open the one for your app and send a couple messages to the
+client to see that they do show up in the messages area.
+
+![Event Creator](doc/assets/images/event-creator.png)
+
+Let's get the server side set up so we can start sending messages via
+[Pusher][pusher] without having to resort to using the
+[Event Creator][event_creator].
+
+**Step 1**
+
+Add the [pusher gem](https://github.com/pusher/pusher-gem) to the project and
+run `bundle install`.
+
+**Step 2**
+
+Add an initializer `app/config/initializers/pusher.rb` to configure
+[Pusher](pusher) as soon as [Rails][rails] starts.
+
+```ruby
+# app/config/initializers/pusher.rb
+
+require 'pusher'
+
+Pusher.app_id = ENV['PUSHER_APP_ID']
+Pusher.key    = ENV['PUSHER_KEY']
+Pusher.secret = ENV['PUSHER_SECRET']
+
+Pusher.logger = Rails.logger
+```
+
+**TODO:** Explain why we should use environment variables to set these values.
+
+**Step 3**
+
+Use either [dotenv][dotenv] or
+[Figaro](https://github.com/laserlemon/figaro) to manage these environment
+variables across our [Rails][rails] environments.
+
+I'd use [dotenv][dotenv].
+
+Add it to the `Gemfile` and run `bundle install`. Then, set `PUSHER_APP_ID`,
+`PUSHER_KEY` and `PUSHER_SECRET` in the `.env` file.
+
+Add `.env` to your `.gitignore`.
+
+**Step 4**
+
+Restart your [Rails](rails) server.
+
+**Step 5**
+
+Finally, we can call `Pusher.trigger` in our controller to route our message to
+every connected user.
+
+```ruby
+# app/controllers/chat_messages_controller.rb
+
+def create
+  @chat_message = ChatMessage.new(params[:chat_message])
+
+  Pusher.trigger('chat', 'new_message', {
+    name: @chat_message.name,
+    message: @chat_message.message
+  })
+
+  respond_to :js
+end
+```
+
+Open two tabs. Send a message from one of them and see that everything works as
+it should.
+
+Not quite though.
+
+In the tab where we send the message we are getting a duplicate. Unfortunately,
+you will have to wait till the next iteration to get that fixed.
+:stuck_out_tongue:
+
 [pusher]: http://pusher.com/
 [rails]: http://rubyonrails.org/
 [form_for]: http://api.rubyonrails.org/classes/ActionView/Helpers/FormHelper.html#method-i-form_for
 [ajax]: https://developer.mozilla.org/en/docs/AJAX
 [chrome_devtools]: http://discover-devtools.codeschool.com/
+[event_creator]: http://pusher.com/docs/debugging#event_creator
+[dotenv]: https://github.com/bkeepers/dotenv

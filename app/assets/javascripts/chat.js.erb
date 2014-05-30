@@ -1,0 +1,12 @@
+;(function ($) {
+
+  var pusher = new Pusher('<%= ENV["PUSHER_KEY"] %>');
+  var channel = pusher.subscribe('chat');
+
+  channel.bind('new_message', function (data) {
+    // Code smell - Duplicated view
+    // It's exactly app/views/chat_messages/_chat_message.html
+    debugger;
+    $('.chat_messages').prepend('<li>' + data.name + ' says ' + data.message + '</li>');
+  });
+}(jQuery));
